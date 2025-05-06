@@ -1,7 +1,7 @@
 #lang racket
 ;;Quinn Lacampe
-;;4/29/2025
-;;Lab 4
+;;5/5/2025
+;;Lab 5
 ;;e1 environment and add
 (define add
   (lambda (a b)
@@ -19,7 +19,7 @@
   [(equal? (caar env) sym)(cadar env) ] 
   [else (lookup sym (cdr env))])
 )
-;;offers support for cond and its nested statements
+;;Offers support for cond and its nested statements
 (define (cond-helper C-item env)
   (cond
     [(equal? (caar C-item) 'else) (evaluate (cadar C-item) env)]
@@ -27,7 +27,17 @@
               (evaluate (cadar C-item) env)
               (cond-helper (cdr C-item) env))
           ]))
-;;evaluate conditional statements.
+;;Function to support let
+(define (let-helper L-item env)
+(let ([new-pair
+       (cons (caaadr L-item)
+             (cons (car (cdaadr L-item)) '()))]) ; construct new variable
+(if (procedure? (car L-item)) ;Check for expression
+    (cons new-pair env)
+    (cons new-pair (let-helper L-item env)))
+ (evaluate (L-item) env);combine new-pair, recur 
+  ))
+;;Evaluate conditional statements.
 (define (evaluate-special-form item env) 
   (cond 
     [(equal? (car item) 'if) 
@@ -37,15 +47,18 @@
       [(equal? (car item) 'cond)
        (if (equal? (evaluate (caadr item) env) #t)
            (evaluate (cadadr item) env)
-           (cond-helper (cddr item) env))] 
+           (cond-helper (cddr item) env))]
+      [(equal? (car item) 'let)(let-helper item env)]
       [else error "special form not recognized"]
   ))
-;function to check if a list starts with a special form
+;;Function to check if a list starts with a special form
 (define (special-form? input)
-  (if (or (equal? (car input) 'if )
-          (equal? (car input) 'cond))
+  (if (or (equal? (car input) 'if)
+          (equal? (car input) 'cond)
+          (equal? (car input) 'let))
         #t 
         #f))
+;Function to evaluate input
 (define(evaluate expr env)
   (cond
     [(number? expr)expr]
