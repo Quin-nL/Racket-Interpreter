@@ -1,7 +1,7 @@
 #lang racket
 ;;Quinn Lacampe
-;;5/5/2025
-;;Lab 5
+;;5/10/2025
+;;From Scott Wehrwein; CSCI 301 Lab 5
 ;;e1 environment and add
 (define add
   (lambda (a b)
@@ -28,15 +28,15 @@
               (cond-helper (cdr C-item) env))
           ]))
 ;;Function to support let
-(define (let-helper L-item env)
-(let ([new-pair
-       (cons (caaadr L-item)
-             (cons (car (cdaadr L-item)) '()))]) ; construct new variable
-(if (procedure? (car L-item)) ;Check for expression
-    (cons new-pair env)
-    (cons new-pair (let-helper L-item env)))
- (evaluate (L-item) env);combine new-pair, recur 
-  ))
+(define (let-helper let-item env)
+  (let* ([bindings (cadr let-item)] 
+         [body (caddr let-item)])   
+    ;;Create the list of new environment additions, e.g., '((var1 val1) (var2 val2))
+    (define new-env-additions (map list (map car bindings) (map (lambda (binding-pair)
+                        (evaluate (cadr binding-pair) env))
+                      bindings)))
+    (evaluate body (append new-env-additions env))
+    ))
 ;;Evaluate conditional statements.
 (define (evaluate-special-form item env) 
   (cond 
@@ -67,7 +67,7 @@
     [(list? expr) 
      (if (procedure? (evaluate (car expr)env))
          (apply(evaluate (car expr) env)(map (lambda (john)  (evaluate john env)) (cdr expr)))
-         (error "First item in a list must be a procedure"(car expr)))])
+         (error "First item in a list must be a procedure"(car ex
   )
 ;;provide functions for tests
 (provide evaluate lookup special-form? evaluate-special-form)
