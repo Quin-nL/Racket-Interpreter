@@ -67,7 +67,7 @@
     [(list? expr) 
      (if (procedure? (evaluate (car expr)env))
          (apply(evaluate (car expr) env)(map (lambda (john)  (evaluate john env)) (cdr expr)))
-         (error "First item in a list must be a procedure"(car ex
+         (error "First item in a list must be a procedure"(car expr)))])
   )
 ;;provide functions for tests
 (provide evaluate lookup special-form? evaluate-special-form)
