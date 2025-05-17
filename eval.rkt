@@ -52,23 +52,20 @@
       [else error "special form not recognized"]
   ))
 ;;Function to apply closure
-(define (apply-closure close-item closure)
+(define (apply-closure close-item close-vals)
   (let* ([bindings (cadr close-item)] 
-         [body (caddr close-item)])   
+         [body (caddr close-item)]
+         [saved-env(closure-env close-item)])   
     ;;Create the list of new environment additions, e.g., '((var1 val1) (var2 val2))
-    (define new-env-additions (map list (map car bindings) (map (lambda (binding-pair)
-                        (evaluate (cadr binding-pair) closure));;maybe this is not necessary edge case handling.
-                      bindings)))
-    (evaluate body (append new-env-additions closure))
+    (define new-env-additions (map list bindings close-vals))
+    (evaluate body (append new-env-additions saved-env))
     ))
 ;;Function to apply lambda
 (define (apply-function expr env)
-  print expr
   (cond
-    [(procedure?)(evaluate (car expr)env) 
-         (apply(evaluate (car expr) env)(map (lambda (john)  (evaluate john env)) (cdr expr)))]
-    [(closure?) (apply-closure expr closure)]
-    [ (error "apply-function error")])
+    [(procedure? expr)(apply expr env)]
+    [(closure? expr) (apply-closure expr env)]
+    [(error "apply-function error")])
 )
 ;;Function to check if a list starts with a special form
 (define (special-form? input)
@@ -92,9 +89,10 @@
     [(number? expr)expr]
     [(symbol? expr)(lookup expr env)]
     [(special-form? expr)(evaluate-special-form expr env)]
-    [(list? expr) (apply-function (car expr) env)]
+    [(list? expr) 
+     (apply-function (evaluate (car expr) env)
+                 (map (lambda (arg) (evaluate arg env)) (cdr expr)))]
     [(error "evaluate error")])
   )
 ;;provide functions for tests
 (provide evaluate lookup special-form? evaluate-special-form)
-
