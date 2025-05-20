@@ -1,7 +1,7 @@
 #lang racket
 ;;Quinn Lacampe
-;;5/15/2025
-;;From Scott Wehrwein; CSCI 301 Lab 6
+;;5/20/2025
+;;From Scott Wehrwein; CSCI 301 Lab 7
 ;;e1 environment and add
 (define add
   (lambda (a b)
@@ -12,11 +12,19 @@
                  '(     x  y  z ls         + - * cons car cdr nil list add = nil? else)
                  (list 5 8 10 (list 1 2) + - * cons car cdr '() list add = empty? #t)))
 
-(define closure (lambda (vars body env) (list 'closure vars body env)))
-(define closure? (lambda (clos) (and (pair? clos) (eq? (car clos) 'closure))))
-(define closure-vars cadr)
-(define closure-body caddr)
-(define closure-env cadddr)
+(define closure
+(lambda (vars body env)
+(mcons ’closure (mcons env (mcons vars body)))))
+(define closure?
+(lambda (clos) (and (mpair? clos) (eq? (mcar clos) ’closure))))
+(define closure-env
+(lambda (clos) (mcar (mcdr clos))))
+(define closure-vars
+(lambda (clos) (mcar (mcdr (mcdr clos)))))
+(define closure-body
+(lambda (clos) (mcdr (mcdr (mcdr clos)))))
+(define set-closure-env!
+(lambda (clos new-env) (set-mcar! (mcdr clos) new-env)))
 
 ;;Offers support for cond and its nested statements
 (define (cond-helper C-item env)
@@ -36,21 +44,7 @@
                       bindings)))
     (evaluate body (append new-env-additions env))
     ))
-;;Evaluate conditional statements.
-(define (evaluate-special-form item env) 
-  (cond 
-    [(equal? (car item) 'if) 
-        (if (equal? (evaluate (cadr item) env) #t) 
-          (evaluate (caddr item) env)
-          (evaluate (cadddr item) env))]
-      [(equal? (car item) 'cond)
-       (if (equal? (evaluate (caadr item) env) #t)
-           (evaluate (cadadr item) env)
-           (cond-helper (cddr item) env))]
-      [(equal? (car item) 'let)(let-helper item env)]
-      [(equal? (car item) 'lambda)(closure (cadr item)(caddr item) env)]
-      [else error "special form not recognized"]
-  ))
+
 ;;Function to apply closure
 (define (apply-closure close-item close-vals)
   (let* ([bindings (cadr close-item)] 
@@ -67,15 +61,42 @@
     [(closure? expr) (apply-closure expr env)]
     [(error "apply-function error")])
 )
+;;Function to support a recursive let
+(define (let-rec expr env)
+  (let* ([bindings (cadr let-item)] 
+         [body (caddr let-item)])   
+    ;;Create the list of new environment additions, e.g., '((var1 val1) (var2 val2))
+    (define new-env-additions (map list (map car bindings) (map (lambda (binding-pair)
+                        (evaluate (cadr binding-pair) env))
+                      bindings)))
+    (evaluate body (append new-env-additions env))
+    ))
+
+;;Evaluate conditional statements, or call the helper-functions
+(define (evaluate-special-form item env) 
+  (cond 
+    [(equal? (car item) 'if) 
+        (if (equal? (evaluate (cadr item) env) #t) 
+          (evaluate (caddr item) env)
+          (evaluate (cadddr item) env))]
+      [(equal? (car item) 'cond)
+       (if (equal? (evaluate (caadr item) env) #t)
+           (evaluate (cadadr item) env)
+           (cond-helper (cddr item) env))]
+      [(equal? (car item) 'let)(let-helper item env)]
+      [(equal? (car item) 'lambda)(closure (cadr item)(caddr item) env)]
+      [else error "special form not recognized"]
+  ))
 ;;Function to check if a list starts with a special form
 (define (special-form? input)
   (if (or (equal? (car input) 'if)
           (equal? (car input) 'cond)
           (equal? (car input) 'let)
-          (equal? (car input) 'lambda))
+          (equal? (car input) 'lambda)
+          (equal? (car input) 'letrec))
         #t 
         #f))
-;;function to lookup symbols
+;;Function to lookup symbols
 (define(lookup sym env)
 (cond 
   [(equal? (length env) 0)(error "No envirorment provided")] 
@@ -96,3 +117,4 @@
   )
 ;;provide functions for tests
 (provide evaluate lookup special-form? evaluate-special-form)
+
