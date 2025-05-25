@@ -5,18 +5,19 @@
 ;;e1 environment and add
 (define add
   (lambda (a b)
-    (cond ((number? a) (+ a b))
-          ((list? a) (append a b))
+    (cond ((and (number? a) (number? b)) (+ a b))
+          ((and (list? a) (list? b)) (append a b))
           (else (error "unable to add" a b)))))
-(define e1  (map list
-                 '(     x  y  z ls         + - * cons car cdr nil list add = nil? else)
-                 (list 5 8 10 (list 1 2) + - * cons car cdr '() list add = empty? #t)))
+
+(define e1 (map list
+                 '(x y z + - * cons car cdr nil empty? = equal? < else  add list)
+             (list 2 4 6 + - * cons car cdr '() empty? = equal? < #t    add list)))
 
 (define closure
 (lambda (vars body env)
-(mcons ’closure (mcons env (mcons vars body)))))
+(mcons 'closure (mcons env (mcons vars body)))))
 (define closure?
-(lambda (clos) (and (mpair? clos) (eq? (mcar clos) ’closure))))
+(lambda (clos) (and (mpair? clos) (eq? (mcar clos) 'closure))))
 (define closure-env
 (lambda (clos) (mcar (mcdr clos))))
 (define closure-vars
@@ -25,6 +26,7 @@
 (lambda (clos) (mcdr (mcdr (mcdr clos)))))
 (define set-closure-env!
 (lambda (clos new-env) (set-mcar! (mcdr clos) new-env)))
+
 
 ;;Offers support for cond and its nested statements
 (define (cond-helper C-item env)
@@ -47,31 +49,38 @@
 
 ;;Function to apply closure
 (define (apply-closure close-item close-vals)
-  (let* ([bindings (cadr close-item)] 
-         [body (caddr close-item)]
+  (let* ([bindings (closure-vars close-item)] 
+         [body(closure-body close-item)]
          [saved-env(closure-env close-item)])   
     ;;Create the list of new environment additions, e.g., '((var1 val1) (var2 val2))
     (define new-env-additions (map list bindings close-vals))
     (evaluate body (append new-env-additions saved-env))
     ))
 ;;Function to apply lambda
-(define (apply-function expr env)
+(define (apply-function expr env) 
   (cond
     [(procedure? expr)(apply expr env)]
     [(closure? expr) (apply-closure expr env)]
     [(error "apply-function error")])
 )
 ;;Function to support a recursive let
-(define (let-rec expr env)
-  (let* ([bindings (cadr let-item)] 
-         [body (caddr let-item)])   
-    ;;Create the list of new environment additions, e.g., '((var1 val1) (var2 val2))
-    (define new-env-additions (map list (map car bindings) (map (lambda (binding-pair)
-                        (evaluate (cadr binding-pair) env))
-                      bindings)))
-    (evaluate body (append new-env-additions env))
-    ))
+(define (let-rec expr old-env)
+  (let* ([bindings (cadr expr)]  
+         [body (caddr expr)]
+         [vars (map car bindings)]
+         [val-exprs (map cadr bindings)])
 
+   
+    (define mini-vals (map (lambda (v-expr) (evaluate v-expr old-env)) val-exprs))
+    (define mini-env (map list vars mini-vals))
+    (define new-env (append mini-env old-env))
+    (for-each
+     (lambda (pair)
+       (let ([val (cadr pair)]) 
+         (when (closure? val)
+           (set-closure-env! val new-env))))
+     mini-env)
+    (evaluate body new-env)))
 ;;Evaluate conditional statements, or call the helper-functions
 (define (evaluate-special-form item env) 
   (cond 
@@ -85,6 +94,7 @@
            (cond-helper (cddr item) env))]
       [(equal? (car item) 'let)(let-helper item env)]
       [(equal? (car item) 'lambda)(closure (cadr item)(caddr item) env)]
+      [(equal? (car item) 'letrec)(let-rec item env)]
       [else error "special form not recognized"]
   ))
 ;;Function to check if a list starts with a special form
